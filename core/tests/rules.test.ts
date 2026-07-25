@@ -75,6 +75,14 @@ describe('reverse return (ADR-0004)', () => {
     s.tokens.red = 5;
     expect(isLegal(s, { player: 'red', from: 5, to: 1 })).toBe(false);
   });
+
+  it('own edge cannot be used when opponent occupies its destination (even if returnable)', () => {
+    // red owns 1-5 (returnStart=5); red@5 could return 5->1, but black sits on 1.
+    const s = createGame(5, 1, 'red');
+    setEdge(s, 1, 5, 'red', 1, 5);
+    expect(isLegal(s, { player: 'red', from: 5, to: 1 })).toBe(false);
+    expect(legalMoves(s).some((m) => m.to === 1)).toBe(false);
+  });
 });
 
 describe('win detection', () => {
