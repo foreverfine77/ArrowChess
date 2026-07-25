@@ -1,0 +1,9 @@
+{
+  "name": "jianqi",
+  "private": true,
+  "workspaces": ["core"],
+  "scripts": {
+    "test": "npm -w core run test",
+    "typecheck": "npm -w core run typecheck"
+  }
+}
