@@ -1,88 +1,150 @@
-/**
- * 箭棋 AI：极小极大 + alpha-beta，基于纯内核（见 ADR-0002）。
- * 与公平性求解器同源；难度档对应搜索深度。
- */
-import { GameState, Move, Player, opponent } from './types';
+/** Deterministic, bounded alpha-beta search over the shared rule engine. */
+import { GameState, Move, Player, Point, opponent } from './types';
 import { legalMoves, applyMove } from './rules';
+import { neighbors } from './board';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
+export const DIFFICULTY_DEPTH: Record<Difficulty, number> = { easy: 2, medium: 6, hard: 10 };
+export const DIFFICULTY_NODES: Record<Difficulty, number> = { easy: 2000, medium: 6000, hard: 12000 };
+const MATE = 100000;
 
-export const DIFFICULTY_DEPTH: Record<Difficulty, number> = {
-  easy: 2,
-  medium: 4,
-  hard: 6,
-};
-
-const INF = 1e6;
-
-/** 启发式评估：己方可落点数 - 对方可落点数。正值利于 player。 */
+interface Routes { mobility: number; capacity: number; points: number }
+function routes(state: GameState, player: Player): Routes {
+  const blocked = state.tokens[opponent(player)];
+  const queue: Point[] = [state.tokens[player]];
+  let points = 1 << (queue[0] - 1);
+  let paths = 0;
+  let capacity = 0;
+  for (let i = 0; i < queue.length; i++) {
+    const from = queue[i];
+    for (const ref of neighbors(from)) {
+      const edge = state.edges[ref.edgeId];
+      if (ref.neighbor === blocked || edge.arrows === 2 ||
+        (edge.arrows === 1 && (edge.owner !== player || edge.returnStart !== from))) continue;
+      const pathBit = 1 << ref.edgeId;
+      if (!(paths & pathBit)) { paths |= pathBit; capacity += 2 - edge.arrows; }
+      const pointBit = 1 << (ref.neighbor - 1);
+      if (!(points & pointBit)) { points |= pointBit; queue.push(ref.neighbor); }
+    }
+  }
+  return {mobility: legalMoves({...state, turn: player}).length, capacity, points: queue.length};
+}
+function routeScore(r: Routes): number {
+  const forced = r.mobility === 0 ? -48 : r.mobility === 1 ? -16 : 0;
+  return r.mobility * 16 + r.capacity * 2 + r.points * 3 + forced;
+}
+/** Reachable paths respect ownership, return direction and the occupied opposing point.
+ * This estimates future options; it does not claim every reachable path can be used.
+ */
 export function evaluate(state: GameState, player: Player): number {
-  const mine = legalMoves({ ...state, turn: player }).length;
-  const theirs = legalMoves({ ...state, turn: opponent(player) }).length;
-  return mine - theirs;
+  return routeScore(routes(state, player)) - routeScore(routes(state, opponent(player)));
 }
 
-function search(
-  state: GameState,
-  depth: number,
-  alpha: number,
-  beta: number,
-  player: Player,
-  ply: number,
-): number {
+type Bound = 'exact' | 'lower' | 'upper';
+interface Entry { depth: number; score: number; bound: Bound; to: Point | null }
+interface SearchContext { nodes: number; budget: number; table: Map<string, Entry> }
+class SearchLimit extends Error {}
+
+/** Include returnStart: arrows and ownership alone do not describe legal returns. */
+function positionKey(state: GameState): string {
+  let key = `${state.tokens.red}${state.tokens.black}${state.turn === 'red' ? 'r' : 'b'}`;
+  for (const edge of state.edges) {
+    const code = edge.arrows === 0 ? 0 : edge.arrows === 2 ? 19 :
+      (edge.owner === 'red' ? 0 : 9) + (edge.returnStart || 0);
+    key += String.fromCharCode(65 + code);
+  }
+  return key;
+}
+interface Child { move: Move; state: GameState; moves: Move[]; priority: number }
+function orderedChildren(state: GameState, moves: Move[], preferred?: Point | null): Child[] {
+  return moves.map(move => {
+    const next = applyMove(state, move);
+    const nextMoves = legalMoves(next);
+    const enemyMobility = nextMoves.length;
+    const myMobility = legalMoves({...next, turn: state.turn}).length;
+    const priority = (move.to === preferred ? 10000 : 0) +
+      (enemyMobility === 0 ? 1000000 : 0) + myMobility * 4 - enemyMobility * 6;
+    return {move, state: next, moves: nextMoves, priority};
+  }).sort((a, b) => b.priority - a.priority || a.move.to - b.move.to);
+}
+
+function search(state: GameState, depth: number, alpha: number, beta: number,
+  ply: number, context: SearchContext, moves = legalMoves(state)): number {
+  if (context.nodes >= context.budget) throw new SearchLimit();
+  context.nodes++;
+  if (!moves.length) return -MATE + ply;
+  if (depth === 0) return evaluate(state, state.turn);
+  const key = positionKey(state);
+  const cached = context.table.get(key);
+  if (cached && cached.depth >= depth) {
+    if (cached.bound === 'exact' || (cached.bound === 'lower' && cached.score >= beta) ||
+      (cached.bound === 'upper' && cached.score <= alpha)) return cached.score;
+  }
+  const originalAlpha = alpha;
+  let score = -Infinity;
+  let to: Point | null = null;
+  for (const child of orderedChildren(state, moves, cached?.to)) {
+    const value = -search(child.state, depth - 1, -beta, -alpha, ply + 1, context, child.moves);
+    if (value > score) { score = value; to = child.move.to; }
+    alpha = Math.max(alpha, score);
+    if (alpha >= beta) break;
+  }
+  context.table.set(key, {depth, score, to,
+    bound: score <= originalAlpha ? 'upper' : score >= beta ? 'lower' : 'exact'});
+  return score;
+}
+
+export interface SearchOptions { maxDepth: number; nodeBudget?: number }
+export interface SearchAnalysis {
+  move: Move | null;
+  score: number;
+  completedDepth: number;
+  nodes: number;
+  /** True only when terminal results prove a win/loss, rather than heuristic scoring. */
+  proven: boolean;
+}
+
+/** Iterative deepening preserves the last completed result when the budget runs out.
+ * Caches belong to this call, so the pure Core stays deterministic and reproducible.
+ */
+export function analyzeMove(state: GameState, options: SearchOptions): SearchAnalysis {
   const moves = legalMoves(state);
-  if (moves.length === 0) {
-    // 当前轮到的方无路可走：player 被困为负，对方被困为正。
-    // 越快取胜（ply 小）/越慢落败（ply 大）越优。
-    return state.turn === player ? -INF + ply : INF - ply;
-  }
-  if (depth === 0) return evaluate(state, player);
-
-  if (state.turn === player) {
-    let best = -Infinity;
-    for (const m of moves) {
-      const v = search(applyMove(state, m), depth - 1, alpha, beta, player, ply + 1);
-      if (v > best) best = v;
-      if (best > alpha) alpha = best;
-      if (beta <= alpha) break;
+  if (!moves.length) return {move: null, score: -MATE, completedDepth: 0, nodes: 0, proven: true};
+  const remaining = state.edges.reduce((sum, edge) => sum + 2 - edge.arrows, 0);
+  const maxDepth = Math.min(remaining, Math.max(1, Number.isFinite(options.maxDepth) ? Math.floor(options.maxDepth) : 1));
+  const budget = options.nodeBudget === undefined ? Infinity :
+    Math.max(1, Number.isFinite(options.nodeBudget) ? Math.floor(options.nodeBudget) : 1);
+  const context: SearchContext = {nodes: 0, budget, table: new Map()};
+  const fallback = orderedChildren(state, moves)[0];
+  let result: SearchAnalysis = {move: fallback.move, score: evaluate(fallback.state, state.turn),
+    completedDepth: 0, nodes: 0, proven: false};
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    let score = -Infinity;
+    let move = fallback.move;
+    let alpha = -Infinity;
+    try {
+      for (const child of orderedChildren(state, moves, result.move?.to)) {
+        const value = -search(child.state, depth - 1, -Infinity, -alpha, 1, context, child.moves);
+        if (value > score) { score = value; move = child.move; }
+        alpha = Math.max(alpha, score);
+      }
+    } catch (error) {
+      if (!(error instanceof SearchLimit)) throw error;
+      break;
     }
-    return best;
+    result = {move, score, completedDepth: depth, nodes: context.nodes, proven: Math.abs(score) > MATE / 2};
+    if (result.proven) break;
   }
-  let best = Infinity;
-  for (const m of moves) {
-    const v = search(applyMove(state, m), depth - 1, alpha, beta, player, ply + 1);
-    if (v < best) best = v;
-    if (best < beta) beta = best;
-    if (beta <= alpha) break;
-  }
-  return best;
+  return {...result, nodes: context.nodes};
 }
 
-/** 返回当前轮到方（须为 player）的最佳走法；无走法返回 null。确定性。 */
+/** Fixed-depth, deterministic API used by hints and tactical analysis. */
 export function bestMove(state: GameState, depth: number, player: Player): Move | null {
-  const moves = legalMoves(state);
-  if (moves.length === 0) return null;
-  const d = Math.max(1, depth);
-  let best = -Infinity;
-  let chosen: Move = moves[0];
-  let alpha = -Infinity;
-  const beta = Infinity;
-  for (const m of moves) {
-    const v = search(applyMove(state, m), d - 1, alpha, beta, player, 1);
-    if (v > best) {
-      best = v;
-      chosen = m;
-    }
-    if (best > alpha) alpha = best;
-  }
-  return chosen;
+  if (player !== state.turn) throw new Error('AI 只能搜索当前回合的走法');
+  return analyzeMove(state, {maxDepth: depth}).move;
 }
 
-/** 按难度档选择走法。 */
-export function aiMove(
-  state: GameState,
-  player: Player,
-  difficulty: Difficulty = 'medium',
-): Move | null {
-  return bestMove(state, DIFFICULTY_DEPTH[difficulty], player);
+export function aiMove(state: GameState, player: Player, difficulty: Difficulty = 'medium'): Move | null {
+  if (player !== state.turn) throw new Error('AI 只能搜索当前回合的走法');
+  return analyzeMove(state, {maxDepth: DIFFICULTY_DEPTH[difficulty], nodeBudget: DIFFICULTY_NODES[difficulty]}).move;
 }

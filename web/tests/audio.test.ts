@@ -7,6 +7,10 @@ import {
   setVolume,
   resetAudioState,
   getBGMState,
+  getVolumeLevel,
+  setVolumeLevel,
+  cycleVolumeLevel,
+  getBGMVolume,
 } from '../../miniprogram/audio';
 
 describe('audio module', () => {
@@ -15,15 +19,18 @@ describe('audio module', () => {
     resetAudioState();
   });
 
-  it('starts unmuted', () => {
+  it('starts unmuted at medium level (level 2)', () => {
     expect(isMuted()).toBe(false);
+    expect(getVolumeLevel()).toBe(2);
   });
 
   it('setMuted changes the muted state', () => {
     setMuted(true);
     expect(isMuted()).toBe(true);
+    expect(getVolumeLevel()).toBe(0);
     setMuted(false);
     expect(isMuted()).toBe(false);
+    expect(getVolumeLevel()).toBe(2);
   });
 
   it('toggleMute flips the state and returns the new value', () => {
@@ -33,25 +40,59 @@ describe('audio module', () => {
     expect(isMuted()).toBe(false);
   });
 
-  it('starts with volume 1 (full)', () => {
-    expect(getVolume()).toBe(1);
+  it('cycleVolumeLevel loops through 4 levels: 2→3→0→1→2', () => {
+    // 初始是中档 2
+    expect(getVolumeLevel()).toBe(2);
+    expect(cycleVolumeLevel()).toBe(3); // 2→3 (高)
+    expect(cycleVolumeLevel()).toBe(0); // 3→0 (静音)
+    expect(isMuted()).toBe(true);
+    expect(cycleVolumeLevel()).toBe(1); // 0→1 (低)
+    expect(isMuted()).toBe(false);
+    expect(cycleVolumeLevel()).toBe(2); // 1→2 (中)
+    expect(getVolumeLevel()).toBe(2);
   });
 
-  it('setVolume clamps to [0, 1]', () => {
+  it('setVolumeLevel clamps to [0, 3]', () => {
+    setVolumeLevel(1);
+    expect(getVolumeLevel()).toBe(1);
+    setVolumeLevel(5);
+    expect(getVolumeLevel()).toBe(3);
+    setVolumeLevel(-1);
+    expect(getVolumeLevel()).toBe(0);
+  });
+
+  it('BGM volume matches the level', () => {
+    setVolumeLevel(0);
+    expect(getBGMVolume()).toBe(0);
+    setVolumeLevel(1);
+    expect(getBGMVolume()).toBeCloseTo(0.25);
+    setVolumeLevel(2);
+    expect(getBGMVolume()).toBeCloseTo(0.55);
+    setVolumeLevel(3);
+    expect(getBGMVolume()).toBeCloseTo(0.9);
+  });
+
+  it('getVolume is compatible and returns BGM volume', () => {
+    setVolumeLevel(2);
+    expect(getVolume()).toBeCloseTo(0.55);
+  });
+
+  it('setVolume maps continuous value to nearest level', () => {
+    setVolume(0);
+    expect(getVolumeLevel()).toBe(0);
+    setVolume(0.1);
+    expect(getVolumeLevel()).toBe(1);
     setVolume(0.5);
-    expect(getVolume()).toBe(0.5);
-    setVolume(1.5);
-    expect(getVolume()).toBe(1);
-    setVolume(-0.3);
-    expect(getVolume()).toBe(0);
+    expect(getVolumeLevel()).toBe(2);
+    setVolume(0.95);
+    expect(getVolumeLevel()).toBe(3);
   });
 
   it('resetAudioState restores defaults', () => {
-    setMuted(true);
-    setVolume(0.3);
+    setVolumeLevel(0);
     resetAudioState();
     expect(isMuted()).toBe(false);
-    expect(getVolume()).toBe(1);
+    expect(getVolumeLevel()).toBe(2);
   });
 
   it('starts with BGM uninitialized (no inner audio context created yet)', () => {

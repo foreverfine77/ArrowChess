@@ -1,0 +1,269 @@
+{
+  "note": "Desktop Node timings; fixed openings with both colors, not a human win-rate estimate.",
+  "timings": [
+    {
+      "difficulty": "medium",
+      "samples": [
+        {
+          "opening": [
+            1,
+            9
+          ],
+          "ms": 19.69,
+          "depth": 6,
+          "nodes": 672,
+          "proven": false
+        },
+        {
+          "opening": [
+            1,
+            3
+          ],
+          "ms": 7.68,
+          "depth": 6,
+          "nodes": 441,
+          "proven": false
+        },
+        {
+          "opening": [
+            1,
+            2
+          ],
+          "ms": 7.9,
+          "depth": 6,
+          "nodes": 544,
+          "proven": false
+        },
+        {
+          "opening": [
+            1,
+            5
+          ],
+          "ms": 10.06,
+          "depth": 6,
+          "nodes": 705,
+          "proven": false
+        },
+        {
+          "opening": [
+            2,
+            8
+          ],
+          "ms": 12.58,
+          "depth": 6,
+          "nodes": 1202,
+          "proven": false
+        },
+        {
+          "opening": [
+            2,
+            6
+          ],
+          "ms": 7.08,
+          "depth": 6,
+          "nodes": 876,
+          "proven": false
+        },
+        {
+          "opening": [
+            4,
+            6
+          ],
+          "ms": 8.2,
+          "depth": 6,
+          "nodes": 1205,
+          "proven": false
+        },
+        {
+          "opening": [
+            5,
+            1
+          ],
+          "ms": 8.54,
+          "depth": 6,
+          "nodes": 971,
+          "proven": false
+        },
+        {
+          "opening": [
+            5,
+            9
+          ],
+          "ms": 7.44,
+          "depth": 6,
+          "nodes": 971,
+          "proven": false
+        },
+        {
+          "opening": [
+            3,
+            7
+          ],
+          "ms": 4.36,
+          "depth": 6,
+          "nodes": 672,
+          "proven": false
+        },
+        {
+          "opening": [
+            3,
+            8
+          ],
+          "ms": 4.98,
+          "depth": 6,
+          "nodes": 1069,
+          "proven": false
+        },
+        {
+          "opening": [
+            7,
+            6
+          ],
+          "ms": 4.72,
+          "depth": 6,
+          "nodes": 1072,
+          "proven": false
+        }
+      ]
+    },
+    {
+      "difficulty": "hard",
+      "samples": [
+        {
+          "opening": [
+            1,
+            9
+          ],
+          "ms": 121.11,
+          "depth": 9,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            1,
+            3
+          ],
+          "ms": 121.73,
+          "depth": 9,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            1,
+            2
+          ],
+          "ms": 119.49,
+          "depth": 9,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            1,
+            5
+          ],
+          "ms": 111.8,
+          "depth": 9,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            2,
+            8
+          ],
+          "ms": 94.52,
+          "depth": 8,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            2,
+            6
+          ],
+          "ms": 105.57,
+          "depth": 8,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            4,
+            6
+          ],
+          "ms": 118.64,
+          "depth": 8,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            5,
+            1
+          ],
+          "ms": 110.31,
+          "depth": 8,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            5,
+            9
+          ],
+          "ms": 83.01,
+          "depth": 8,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            3,
+            7
+          ],
+          "ms": 73.09,
+          "depth": 9,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            3,
+            8
+          ],
+          "ms": 74.17,
+          "depth": 8,
+          "nodes": 12000,
+          "proven": false
+        },
+        {
+          "opening": [
+            7,
+            6
+          ],
+          "ms": 66.18,
+          "depth": 8,
+          "nodes": 12000,
+          "proven": false
+        }
+      ]
+    }
+  ],
+  "matches": [
+    {
+      "difficulty": "medium",
+      "wins": 21,
+      "losses": 3,
+      "games": 24
+    },
+    {
+      "difficulty": "hard",
+      "wins": 22,
+      "losses": 2,
+      "games": 24
+    }
+  ]
+}
