@@ -1,6 +1,5 @@
 import { EdgeState, GameResult, GameState, Move, Player, Point, opponent } from './types';
 import { neighbors, tryEdgeIdBetween } from './board';
-import { clone } from './state';
 
 /** 己方能否从 from 走过该路径（不含「落点是否为对方点」的检查）。 */
 function canTraverse(edge: EdgeState, player: Player, from: Point): boolean {
@@ -37,12 +36,15 @@ export function legalMoves(state: GameState): Move[] {
 
 /** 执行走法（假定合法）。返回新状态，不改原状态。 */
 export function applyMove(state: GameState, move: Move): GameState {
-  const next = clone(state);
+  // Only this path changes. Share untouched paths while keeping the changed
+  // path and tokens independent, so search does not copy twenty objects per node.
+  const next: GameState = {...state, tokens: {...state.tokens}, edges: [...state.edges]};
   const eid = tryEdgeIdBetween(move.from, move.to);
   if (eid === -1) {
     throw new Error(`非法走法（不相邻）: ${move.player} ${move.from}->${move.to}`);
   }
-  const e = next.edges[eid];
+  const e = {...state.edges[eid]};
+  next.edges[eid] = e;
   if (e.arrows === 0) {
     e.owner = move.player;
     e.arrows = 1;
