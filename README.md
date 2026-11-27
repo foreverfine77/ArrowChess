@@ -2,7 +2,9 @@
 
 箭棋是一款双人路径占领棋。双方各一枚棋子，在九个点之间走棋。走过的路径归你所有，封住对手的退路就能取胜。
 
-## 开始对局
+**[在线试玩箭棋](https://foreverfine77.github.io/ArrowChess/)**
+
+## 离线游玩
 
 1. 在 GitHub 仓库点击 **Code → Download ZIP**，然后解压整个目录。
 2. 双击 `web/index.html`。Windows 也可以双击根目录的 `启动箭棋.cmd`。
