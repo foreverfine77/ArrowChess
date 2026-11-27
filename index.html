@@ -535,19 +535,6 @@
         </aside>
       </main>
     </div>
-    <script>
-      const gameScript = document.createElement('script');
-      if (location.protocol === 'file:') {
-        gameScript.src = './game.js';
-      } else {
-        gameScript.type = 'module';
-        gameScript.src = './src/main.ts';
-      }
-      gameScript.onerror = () => {
-        document.getElementById('status').textContent =
-          '游戏加载失败。请在项目目录运行 npm run build:web，或用 npm run dev 启动开发服务器。';
-      };
-      document.body.appendChild(gameScript);
-    </script>
+    <script src="./game.js"></script>
   </body>
 </html>

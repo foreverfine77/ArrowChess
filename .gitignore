@@ -1,9 +1,0 @@
-node_modules/
-dist/
-*.log
-.DS_Store
-.claude/settings.local.json
-.scratch/
-.npm-cache/
-# miniprogram 由微信开发者工具管理，自带 .git 嵌套仓库
-miniprogram/
